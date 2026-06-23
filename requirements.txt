@@ -1,0 +1,14 @@
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+redis==5.0.4
+pyjwt==2.8.0
+httpx==0.27.0
+python-dotenv==1.0.1
+prometheus-client==0.20.0
+websockets==12.0
+streamlit==1.35.0
+plotly==5.22.0
+pandas==2.2.2
+pytest==8.2.1
+pytest-asyncio==0.23.7
+pydantic==2.7.1
