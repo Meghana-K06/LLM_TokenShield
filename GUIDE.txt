@@ -1,0 +1,20 @@
+Every reboot — 3 steps, 3 terminals
+
+Terminal 1 — run startup script:
+bash ~/Desktop/twinshield/start.sh
+source ~/Desktop/twinshield/venv/bin/activate
+
+Terminal 2 — FastAPI backend:
+source ~/Desktop/twinshield/venv/bin/activate
+export PYTHONPATH=/home/meghana/Desktop/twinshield/backend
+cd ~/Desktop/twinshield/backend
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+Terminal 3 — Streamlit dashboard:
+source ~/Desktop/twinshield/venv/bin/activate
+cd ~/Desktop/twinshield/dashboard
+streamlit run app.py --server.port 8501
+
+Quick verify everything is working
+bashredis-cli ping                              # → PONG
+curl http://localhost:8000/health           # → {"status":"ok"}
