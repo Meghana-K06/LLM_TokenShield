@@ -1,9 +1,13 @@
 import streamlit as st
-from pages.api_client import get_campaigns
+import time
+from components.api_client import get_campaigns
 
 def render():
     st.title("🔗 Campaign Detection")
     st.caption("Tracks coordinated attacks across users and IPs.")
+
+    refresh = st.sidebar.slider("Auto-refresh (sec)", 5, 60, 15, key="refresh_campaign")
+
     campaigns = get_campaigns()
     if not campaigns:
         st.success("✅ No active campaigns detected.")
@@ -12,3 +16,6 @@ def render():
         st.error(f"⚠️ {len(campaigns)} active campaign(s) detected!")
         for c in campaigns:
             st.json(c)
+
+    time.sleep(refresh)
+    st.rerun()

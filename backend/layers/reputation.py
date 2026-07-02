@@ -106,6 +106,9 @@ class ReputationEngine:
             json.dumps(data)
         )
 
+        # Track this user in the master set (no TTL — permanent until reset)
+        r.sadd("users:all_known", user_id)
+
     def _apply_decay(self, data: dict) -> float:
         """Trust decays slightly if user hasn't been seen recently."""
         score     = data.get("trust_score", self.INITIAL_SCORE)
@@ -137,20 +140,42 @@ class ReputationEngine:
         )
 
     def get_all_scores(self) -> list:
-        """For dashboard use — returns all tracked users."""
-        r    = self._redis()
-        keys = r.keys("reputation:*")
-        out  = []
-        for k in keys[:50]:
-            raw = r.get(k)
+        """For dashboard use — returns ALL known users, even ones whose Redis TTL expired data."""
+        r = self._redis()
+
+        # Get every user_id ever seen (permanent set)
+        all_users = r.smembers("users:all_known")
+
+        out = []
+        for user_id in all_users:
+            raw = r.get(f"reputation:{user_id}")
+            is_blacklisted = bool(r.sismember("blacklist:users", user_id))
+
             if raw:
-                data    = json.loads(raw)
-                user_id = k.replace("reputation:", "")
+                data = json.loads(raw)
+                trust_score = data.get("trust_score", 0)
                 out.append({
-                    "user_id":      user_id,
-                    "trust_score":  data.get("trust_score", 0),
-                    "tier":         self._get_tier(data.get("trust_score", 0)),
-                    "abuse_count":  data.get("abuse_count", 0),
-                    "total_requests": data.get("total_requests", 0),
+                    "user_id":         user_id,
+                    "trust_score":     round(trust_score, 3),
+                    "tier":            "blacklisted" if is_blacklisted else self._get_tier(trust_score),
+                    "abuse_count":     data.get("abuse_count", 0),
+                    "total_requests":  data.get("total_requests", 0),
+                    "avg_cost_score":  data.get("avg_cost_score", 0),
+                    "last_seen":       data.get("last_seen", 0),
+                    "is_blacklisted":  is_blacklisted,
                 })
-        return sorted(out, key=lambda x: x["trust_score"])
+            else:
+                # User exists in master set but their reputation TTL expired
+                out.append({
+                    "user_id":        user_id,
+                    "trust_score":    0.0,
+                    "tier":           "blacklisted" if is_blacklisted else "expired",
+                    "abuse_count":    0,
+                    "total_requests": 0,
+                    "avg_cost_score": 0,
+                    "last_seen":      0,
+                    "is_blacklisted": is_blacklisted,
+                })
+
+        # Sort: blacklisted first, then by trust score ascending
+        return sorted(out, key=lambda x: (not x["is_blacklisted"], x["trust_score"]))

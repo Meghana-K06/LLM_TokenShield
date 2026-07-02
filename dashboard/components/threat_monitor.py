@@ -1,11 +1,14 @@
 import streamlit as st
+import time
 import plotly.graph_objects as go
 import plotly.express as px
-from pages.api_client import get_metrics
+from components.api_client import get_request_history
+from components.api_client import get_metrics
 
 def render():
     st.title("🚨 Threat Monitor")
-
+    refresh = st.sidebar.slider("Auto-refresh (sec)", 5, 60, 10, key="refresh_threat")
+    
     metrics = get_metrics()
     if not metrics:
         st.error("Backend not reachable.")
@@ -78,6 +81,21 @@ def render():
     }
     for layer, desc in layers.items():
         st.markdown(f"✅ **{layer}** — {desc}")
+
+    st.divider()
+    st.subheader("📜 Recent Attack History")
+    history = get_request_history(20)
+    blocked_history = [h for h in history if h.get("report", {}).get("blocked")]
+
+    if blocked_history:
+        for h in blocked_history[:10]:
+            report = h.get("report", {})
+            st.error(f"🚫 {report.get('user_id','?')} — {report.get('block_reason','unknown')}")
+    else:
+        st.success("✅ No attacks in recent history")
+
+    time.sleep(refresh)
+    st.rerun()
 
     if st.button("🔄 Refresh"):
         st.rerun()
