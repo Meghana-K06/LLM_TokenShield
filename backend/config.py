@@ -2,6 +2,10 @@ from pydantic_settings import BaseSettings
 from functools import lru_cache
 
 class Settings(BaseSettings):
+    #Quota
+    QUOTA_LIMIT: int = 5          # requests per 1hr
+    QUOTA_WINDOW_SECONDS: int = 3600 # 1hr
+
     # App
     APP_NAME: str = "TwinShield"
     APP_HOST: str = "0.0.0.0"

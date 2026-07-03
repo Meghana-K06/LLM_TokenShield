@@ -52,12 +52,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-auth_layer        = AuthLayer()
+reputation_engine = ReputationEngine()
+auth_layer        = AuthLayer(reputation_engine=reputation_engine)
 entropy_engine    = EntropyEngine()
 risk_engine       = RiskAnalysisEngine()
 correlation_engine= CorrelationEngine()
 amplification_det = AmplificationDetector()
-reputation_engine = ReputationEngine()
 challenge_gen     = ChallengeGenerator()
 proof_of_compute  = ProofOfCompute()
 token_allocator   = TokenBudgetAllocator()
@@ -284,14 +284,18 @@ async def get_all_reputation():
 async def get_campaigns():
     return correlation_engine.get_active_campaigns()
 
+class BlacklistRequest(BaseModel):
+    reason: Optional[str] = "Manually blacklisted via dashboard"
+
 @app.post("/blacklist/user/{user_id}")
-async def blacklist_user(user_id: str):
-    auth_layer.blacklist_user(user_id)
-    return {"blacklisted": user_id}
+async def blacklist_user(user_id: str, body: BlacklistRequest = BlacklistRequest()):
+    auth_layer.blacklist_user(user_id, reason=body.reason, triggered_by="manual")
+    return {"blacklisted": user_id, "reason": body.reason}
 
 @app.delete("/blacklist/user/{user_id}")
 async def unblacklist_user(user_id: str):
     _redis_log.srem("blacklist:users", user_id)
+    _redis_log.delete(f"blacklist:meta:{user_id}")
     return {"unblacklisted": user_id}
 
 @app.post("/blacklist/ip/{ip}")

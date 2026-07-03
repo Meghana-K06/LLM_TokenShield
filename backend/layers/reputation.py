@@ -127,6 +127,19 @@ class ReputationEngine:
         if score >= 0.45: return "authenticated"
         return "anonymous"
 
+    def peek_tier(self, user_id: str) -> str:
+        """
+        Read-only tier lookup — applies decay for an accurate current
+        score but does NOT write back to Redis. Used by other layers
+        (e.g. AuthLayer) that need a consistent tier without triggering
+        an extra save on every single request. The authoritative,
+        state-mutating read still happens once per request via
+        get_score() later in the pipeline.
+        """
+        data  = self._load(user_id)
+        score = self._apply_decay(data)
+        return self._get_tier(score)
+
     def _flag_for_blacklist(self, user_id: str):
         r = self._redis()
         r.sadd("blacklist:candidates", user_id)
@@ -150,6 +163,11 @@ class ReputationEngine:
         for user_id in all_users:
             raw = r.get(f"reputation:{user_id}")
             is_blacklisted = bool(r.sismember("blacklist:users", user_id))
+            blacklist_meta = None
+            if is_blacklisted:
+                meta_raw = r.get(f"blacklist:meta:{user_id}")
+                if meta_raw:
+                    blacklist_meta = json.loads(meta_raw)
 
             if raw:
                 data = json.loads(raw)
@@ -163,6 +181,7 @@ class ReputationEngine:
                     "avg_cost_score":  data.get("avg_cost_score", 0),
                     "last_seen":       data.get("last_seen", 0),
                     "is_blacklisted":  is_blacklisted,
+                    "blacklist_reason": blacklist_meta,
                 })
             else:
                 # User exists in master set but their reputation TTL expired
@@ -175,6 +194,7 @@ class ReputationEngine:
                     "avg_cost_score": 0,
                     "last_seen":      0,
                     "is_blacklisted": is_blacklisted,
+                    "blacklist_reason": blacklist_meta,
                 })
 
         # Sort: blacklisted first, then by trust score ascending

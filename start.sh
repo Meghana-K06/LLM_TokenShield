@@ -19,6 +19,9 @@ fi
 export PYTHONPATH=/home/meghana/Desktop/twinshield/backend
 echo "✅ PYTHONPATH set"
 
+export TIKTOKEN_CACHE_DIR=~/Desktop/twinshield/.tiktoken_cache
+echo "Tiktoken path set"
+
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "Now open 2 more terminals and run:"
