@@ -1,7 +1,7 @@
 import redis
 import time
-from config import get_settings
-from layers.reputation import ReputationEngine
+from config import get_settings 
+from layers.reputation import ReputationEngine  # forgetting the toer details like authenticated, trusted or anonymous
 
 settings = get_settings()
 
@@ -15,11 +15,7 @@ class AuthLayer:
         )
         self.quota_limit    = settings.QUOTA_LIMIT
         self.window_seconds = settings.QUOTA_WINDOW_SECONDS
-        # Tier now comes from the same trust-score logic ReputationEngine
-        # uses everywhere else, instead of separate Redis sets
-        # (users:authenticated / users:trusted) that nothing ever
-        # populated — previously every user showed "anonymous" here
-        # regardless of their actual trust score.
+        
         self.reputation = reputation_engine or ReputationEngine()
 
     def check(self, user_id: str, client_ip: str) -> dict:
