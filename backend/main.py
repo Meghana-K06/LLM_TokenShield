@@ -131,7 +131,7 @@ async def chat(request: Request, body: PromptRequest):
             else "low"
         )
 
-        risk_result = risk_engine.analyze(prompt)
+        risk_result = await risk_engine.analyze(prompt)
         protection_report["risk_flags"] = risk_result["risk_flags"]
         protection_report["risk_score"] = risk_result["risk_score"]
         protection_report["detection_breakdown"]["risk"] = (
@@ -139,6 +139,19 @@ async def chat(request: Request, body: PromptRequest):
             else "suspicious" if risk_result["is_suspicious"]
             else "clean"
         )
+
+        # Layer 3 runs three independent detectors — keep each one's
+        # output visible separately (not just the merged risk_flags)
+        # so the dashboard can show which detector actually caught
+        # what, e.g. for a side-by-side comparison view.
+        protection_report["layer3_sources"] = {
+            "rule_flags":        risk_result["rule_flags"],
+            "semantic_flags":    risk_result["semantic_flags"],
+            "semantic_matches":  risk_result["semantic_matches"],
+            "lakera_flags":      risk_result["lakera_flags"],
+            "lakera_categories": risk_result["lakera_categories"],
+            "lakera_status":     risk_result["lakera_status"],
+        }
 
         if risk_result["risk_score"] >= 18 and risk_result["is_suspicious"]:
             metrics.increment("blocked_requests")
